@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root, .tema-claro {
+  --color-primary: 0 22 45;
+  --color-primary-container: 15 43 72;
+  --color-secondary: 69 95 136;
+  --color-surface: 248 249 255;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 239 244 255;
+  --color-surface-container: 229 238 255;
+  --color-surface-container-high: 220 233 255;
+  --color-on-surface: 11 28 48;
+  --color-on-surface-variant: 67 71 77;
+  --color-on-primary: 255 255 255;
+  --color-on-primary-container: 255 255 255;
+}
+
+.tema-oscuro {
+  --color-primary: 169 199 255;
+  --color-primary-container: 0 69 143;
+  --color-secondary: 171 199 255;
+  --color-surface: 11 28 48;
+  --color-surface-container-lowest: 5 16 28;
+  --color-surface-container-low: 15 43 72;
+  --color-surface-container: 26 58 92;
+  --color-surface-container-high: 36 73 112;
+  --color-on-surface: 229 238 255;
+  --color-on-surface-variant: 141 158 176;
+  --color-on-primary: 0 45 98;
+  --color-on-primary-container: 229 238 255;
+}
+
+.tema-azul {
+  --color-primary: 0 77 128;
+  --color-primary-container: 0 51 85;
+  --color-secondary: 0 102 153;
+  --color-surface: 240 248 255;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 224 240 255;
+  --color-surface-container: 204 230 255;
+  --color-surface-container-high: 153 204 255;
+  --color-on-surface: 0 26 51;
+  --color-on-surface-variant: 0 51 102;
+  --color-on-primary: 255 255 255;
+  --color-on-primary-container: 255 255 255;
+}
+
+.tema-rosa {
+  --color-primary: 128 0 64;
+  --color-primary-container: 85 0 42;
+  --color-secondary: 153 0 77;
+  --color-surface: 255 240 245;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 255 224 235;
+  --color-surface-container: 255 204 216;
+  --color-surface-container-high: 255 153 179;
+  --color-on-surface: 51 0 26;
+  --color-on-surface-variant: 102 0 51;
+  --color-on-primary: 255 255 255;
+  --color-on-primary-container: 255 255 255;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+/* ... mantén el resto de estilos de scroll y animaciones intactos ... */

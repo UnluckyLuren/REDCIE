@@ -1,0 +1,173 @@
+name: red-udg
+
+networks:
+  red-udeg-interna:
+    driver: bridge
+
+volumes:
+  datos-mysql:
+    driver: local
+  datos-uploads:
+    driver: local
+  datos-redis:
+    driver: local
+  frontend-build:
+    driver: local
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: red-udeg-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NOMBRE}
+      MYSQL_USER: ${DB_USUARIO}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - datos-mysql:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:3309:3306"
+    networks:
+      - red-udeg-interna
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=500
+      --slow-query-log=1
+      --slow-query-log-file=/var/log/mysql/slow.log
+      --long-query-time=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: red-udeg-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - datos-redis:/data
+    networks:
+      - red-udeg-interna
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend-php:
+    build:
+      context: ./backend-php
+      dockerfile: Dockerfile
+      args:
+        PHP_ENV: ${APP_ENV:-production}
+    container_name: red-udeg-backend
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_URL: ${APP_URL}
+      APP_CLAVE_SECRETA: ${APP_CLAVE_SECRETA}
+      DB_HOST: mysql
+      DB_PUERTO: 3306
+      DB_NOMBRE: ${DB_NOMBRE}
+      DB_USUARIO: ${DB_USUARIO}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PUERTO: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRETO: ${JWT_SECRETO}
+      JWT_DURACION_MINUTOS: ${JWT_DURACION_MINUTOS:-15}
+      JWT_REFRESH_DIAS: ${JWT_REFRESH_DIAS:-7}
+      ARGON2_MEMORIA: ${ARGON2_MEMORIA:-65536}
+      ARGON2_ITERACIONES: ${ARGON2_ITERACIONES:-3}
+      ARGON2_PARALELISMO: ${ARGON2_PARALELISMO:-1}
+      UPLOADS_RUTA: /var/www/uploads
+      MAX_TAMANO_ARCHIVO_MB: ${MAX_TAMANO_ARCHIVO_MB:-25}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PUERTO: ${SMTP_PUERTO}
+      SMTP_USUARIO: ${SMTP_USUARIO}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+    volumes:
+      - datos-uploads:/var/www/uploads
+      - ./backend-php/src:/var/www/src:ro
+    networks:
+      - red-udeg-interna
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+      build:
+        context: ./frontend
+        dockerfile: Dockerfile
+        args:
+          VITE_API_URL: ${VITE_API_URL}
+          VITE_APP_ENV: ${APP_ENV}
+      container_name: red-udeg-frontend
+      restart: unless-stopped
+      ports:
+        - "5161:5161" # Exponemos el puerto de desarrollo de Vite
+      volumes:
+        - ./frontend:/app
+        - /app/node_modules
+      command: npm run dev
+      networks:
+        - red-udeg-interna
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: red-udeg-nginx
+    restart: unless-stopped
+    ports:
+      - "78:80"
+      - "7443:443"
+    volumes:
+      - datos-uploads:/var/www/uploads:ro
+      - frontend-build:/var/www/html:ro
+    networks:
+      - red-udeg-interna
+    depends_on:
+      - backend-php
+      - frontend
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: red-udeg-cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    networks:
+      - red-udeg-interna
+    depends_on:
+      - nginx
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
